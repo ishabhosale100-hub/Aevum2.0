@@ -1,0 +1,28 @@
+﻿<!doctype html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Aevum - Digital Forensic Command Center</title>
+    <!-- Load Tailwind CSS CDN for instant styling if local build is missing -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              darkbg: '#030712',
+              neonblue: '#3b82f6',
+              neonpurple: '#a855f7'
+            }
+          }
+        }
+      }
+    </script>
+  </head>
+  <body class="bg-gray-950 text-white min-h-screen selection:bg-neonblue selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
