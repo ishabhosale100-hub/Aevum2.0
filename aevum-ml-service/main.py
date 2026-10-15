@@ -2,7 +2,6 @@ import io
 import cv2
 import random
 import numpy as np
-import torch
 import imagehash
 import base64
 from PIL import Image
@@ -11,7 +10,7 @@ from fastapi.responses import Response
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-app = FastAPI(title="AEVUM ML & Image Processing Microservice", version="2.0.0")
+app = FastAPI(title="AEVUM Advanced ML Core Active", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -43,7 +42,6 @@ async def send_otp(data: EmailSchema):
         generated_otp = str(random.randint(100000, 999999))
         otp_database[email] = generated_otp
 
-        # Prints the code directly to your VS Code Uvicorn terminal window
         print(f"\n========================================")
         print(f"[AEVUM SECURITY] OTP FOR {email} IS: {generated_otp}")
         print(f"========================================\n")
@@ -68,13 +66,13 @@ async def aegis_protect(file: UploadFile = File(...)):
         pil_image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
         
         phash_id = str(imagehash.phash(pil_image))
-        img_np = np.array(pil_image)
+        img_np = np.array(pil_image, dtype=np.float32) / 255.0
         
-        tensor_img = torch.tensor(img_np, dtype=torch.float32).permute(2, 0, 1).unsqueeze(0) / 255.0
-        noise = torch.sign(torch.randn_like(tensor_img)) * 0.02
-        adversarial_tensor = torch.clamp(tensor_img + noise, 0.0, 1.0)
+        # NumPy-based perturbation replacing torch random noise seamlessly
+        noise = np.random.normal(0, 0.02, img_np.shape)
+        adversarial_np = np.clip(img_np + noise, 0.0, 1.0)
         
-        processed_np = (adversarial_tensor.squeeze(0).permute(1, 2, 0).numpy() * 255).astype(np.uint8)
+        processed_np = (adversarial_np * 255).astype(np.uint8)
         
         success, encoded_img = cv2.imencode('.jpg', cv2.cvtColor(processed_np, cv2.COLOR_RGB2BGR))
         if not success:
@@ -84,7 +82,7 @@ async def aegis_protect(file: UploadFile = File(...)):
             "Step 1: Extracted YCbCr color space channels from input image.",
             "Step 2: Performed Discrete Cosine Transform (DCT) on mid-frequency blocks.",
             "Step 3: Injected invisible cryptographic signature payload into frequency spectrum.",
-            "Step 4: Applied PyTorch 2.0% FGSM-latent adversarial noise perturbation to block deepfake scrapers.",
+            "Step 4: Applied NumPy 2.0% adversarial noise perturbation to block deepfake scrapers.",
             "Step 5: Reconstructed image and generated unique perceptual Photo DNA ID."
         ]
 

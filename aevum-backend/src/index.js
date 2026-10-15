@@ -19,6 +19,11 @@ const transporter = nodemailer.createTransport({
   }
 });
 
+// Health check endpoint for Vercel
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'active', service: 'Aevum Backend API' });
+});
+
 // Dynamic Signup/Login endpoint: Accepts any email/password and sends OTP
 app.post('/api/auth/login-signup', async (req, res) => {
   const { email, password } = req.body;
@@ -40,7 +45,9 @@ app.post('/api/auth/login-signup', async (req, res) => {
   };
 
   try {
-    await transporter.sendMail(mailOptions);
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      await transporter.sendMail(mailOptions);
+    }
     res.json({ success: true, message: 'OTP sent successfully to your email.' });
   } catch (error) {
     console.error('Error sending email:', error);
@@ -71,5 +78,11 @@ app.post('/api/verify-otp', (req, res) => {
   res.json({ success: true, message: 'Verified successfully!', token: 'dummy-jwt-token-aevum' });
 });
 
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Backend server running on port ${PORT}`));
+// Export app for Vercel serverless functions
+module.exports = app;
+
+// Start local server if not running on Vercel
+if (process.env.NODE_ENV !== 'production') {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () => console.log(`Backend server running on port ${PORT}`));
+}
