@@ -5,7 +5,19 @@ require('dotenv').config();
 
 const app = express();
 app.use(express.json({ limit: '50mb' }));
-app.use(cors());
+
+// Configured CORS to accept requests from your Vercel frontend and local development
+app.use(cors({
+  origin: [
+    'https://aevum2-0-ozz7.vercel.app',
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:3000'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+}));
 
 // Initialize Supabase Client
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -267,8 +279,7 @@ app.get(['/api/history/:email', '/api/history'], async (req, res) => {
 // Export app for Vercel serverless functions
 module.exports = app;
 
-module.exports = app;
-
+// Start local server if not running on Vercel
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`Backend server running on port ${PORT}`));
