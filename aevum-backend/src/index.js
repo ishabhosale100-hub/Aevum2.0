@@ -267,7 +267,8 @@ app.get(['/api/history/:email', '/api/history'], async (req, res) => {
 // Export app for Vercel serverless functions
 module.exports = app;
 
-// Start local server if not running on Vercel
+module.exports = app;
+
 if (process.env.NODE_ENV !== 'production') {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => console.log(`Backend server running on port ${PORT}`));

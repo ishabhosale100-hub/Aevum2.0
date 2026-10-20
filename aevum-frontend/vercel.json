@@ -1,18 +1,9 @@
-
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/api/ml/:path*",
-      "destination": "https://aevum2-0-dhv1.vercel.app/api/ml/:path*"
-    },
-    {
-      "source": "/api/auth/:path*",
-      "destination": "https://aevum2-0-hhym.vercel.app/api/auth/:path*"
-    },
-    {
-      "source": "/api/verify-otp",
-      "destination": "https://aevum2-0-hhym.vercel.app/api/verify-otp"
+      "source": "/api/(.*)",
+      "destination": "/index.js"
     }
   ]
 }
