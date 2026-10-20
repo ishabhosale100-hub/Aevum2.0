@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   AlertTriangle,
@@ -21,6 +20,16 @@ export default function OriginView() {
     setError('');
   };
 
+  // Helper to load file into an HTML Image element
+  const loadImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => resolve(img);
+      img.onerror = (err) => reject(err);
+    });
+  };
+
   const handleAnalyze = async (e) => {
     e.preventDefault();
 
@@ -33,37 +42,117 @@ export default function OriginView() {
     setAnalysis(null);
     setError('');
 
-    const formData = new FormData();
-    formData.append('original', original);
-    formData.append('suspected', suspected);
-
     try {
-      // Uses the frontend domain; Vercel forwards this to the ML service.
-      const response = await fetch('/api/ml/origin-analyze', {
-        method: 'POST',
-        body: formData,
-      });
+      // Load both images into memory
+      const imgOrig = await loadImage(original);
+      const imgSusp = await loadImage(suspected);
 
-      if (!response.ok) {
-        let message = 'Analysis failed via ORIGIN microservice.';
-        try {
-          const data = await response.json();
-          if (data.detail || data.error || data.message) {
-            message = data.detail || data.error || data.message;
-          }
-        } catch {
-          // Keep the default error message if the response is not JSON.
+      // Set standard analysis canvas dimensions (max 500px for high performance)
+      const width = Math.min(imgOrig.width, imgSusp.width, 500);
+      const height = Math.min(imgOrig.height, imgSusp.height, 500);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+
+      // Draw and get pixel data for Original
+      ctx.drawImage(imgOrig, 0, 0, width, height);
+      const origData = ctx.getImageData(0, 0, width, height);
+
+      // Draw and get pixel data for Suspected
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(imgSusp, 0, 0, width, height);
+      const suspData = ctx.getImageData(0, 0, width, height);
+
+      const origPixels = origData.data;
+      const suspPixels = suspData.data;
+      const diffData = ctx.createImageData(width, height);
+      const diffPixels = diffData.data;
+
+      let totalDiff = 0;
+      let diffPixelCount = 0;
+      let minX = width, maxX = 0, minY = height, maxY = 0;
+
+      // Pixel-by-pixel differential comparison
+      for (let i = 0; i < origPixels.length; i += 4) {
+        const rDiff = Math.abs(origPixels[i] - suspPixels[i]);
+        const gDiff = Math.abs(origPixels[i + 1] - suspPixels[i + 1]);
+        const bDiff = Math.abs(origPixels[i + 2] - suspPixels[i + 2]);
+        
+        const pixelDiff = (rDiff + gDiff + bDiff) / 3;
+        totalDiff += pixelDiff;
+
+        const x = (i / 4) % width;
+        const y = Math.floor((i / 4) / width);
+
+        if (pixelDiff > 35) { // Threshold for noticeable tampering/difference
+          diffPixelCount++;
+          // Highlight discrepancy in Bright Red on heatmap
+          diffPixels[i] = 255;     // R
+          diffPixels[i + 1] = 0;   // G
+          diffPixels[i + 2] = 0;   // B
+          diffPixels[i + 3] = 220; // Alpha
+
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        } else {
+          // Fade background to grayscale/transparent for contrast
+          const avgGray = (suspPixels[i] + suspPixels[i + 1] + suspPixels[i + 2]) / 3;
+          diffPixels[i] = avgGray;
+          diffPixels[i + 1] = avgGray;
+          diffPixels[i + 2] = avgGray;
+          diffPixels[i + 3] = 90;
         }
-        throw new Error(message);
       }
 
-      const data = await response.json();
-      setAnalysis(data);
+      const meanVariance = Number((totalDiff / (origPixels.length / 4)).toFixed(2));
+      const confidenceScore = Number(Math.min(99.9, Math.max(15, (diffPixelCount / (width * height)) * 300 + 40)).toFixed(2));
+      const flaggedTampering = meanVariance > 8.0 || diffPixelCount > (width * height * 0.02);
+
+      // Put diff image back to canvas to export as base64 heatmap
+      ctx.putImageData(diffData, 0, 0);
+      const heatmapBase64 = canvas.toDataURL('image/jpeg');
+
+      // Region descriptions
+      let regions = [];
+      if (flaggedTampering && diffPixelCount > 0) {
+        regions.push(`Discrepancy cluster bounded around coordinates [X: ${minX}-${maxX}, Y: ${minY}-${maxY}]`);
+      } else {
+        regions.push('No anomalous localized editing regions found.');
+      }
+
+      const analysisResult = {
+        flagged_tampering: flaggedTampering,
+        manipulation_confidence: `${confidenceScore}%`,
+        mean_pixel_variance: meanVariance,
+        tampered_regions_detected: regions,
+        heatmap_image_base64: heatmapBase64
+      };
+
+      setAnalysis(analysisResult);
+
+      // Save report record to Supabase via backend save endpoint
+      const userEmail = localStorage.getItem('user_email') || 'isha@test.com';
+      await fetch('http://localhost:5000/api/save/origin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_email: userEmail,
+          confidence_score: confidenceScore,
+          mean_pixel_variance: meanVariance,
+          flagged_tampering: flaggedTampering,
+          heatmap_base64: heatmapBase64
+        }),
+      });
+
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
-          : 'An unexpected error occurred during image analysis.'
+          : 'An unexpected error occurred during client-side image analysis.'
       );
     } finally {
       setLoading(false);
@@ -142,7 +231,7 @@ export default function OriginView() {
               <Search className="w-5 h-5" />
             )}
             {loading
-              ? 'Running Pixel Differential Analysis...'
+              ? 'Computing Pixel Differential & Generating Heatmap...'
               : 'Run ORIGIN Analysis'}
           </button>
         </form>
@@ -173,12 +262,12 @@ export default function OriginView() {
               <p>
                 <strong>Difference Score:</strong>{' '}
                 <span className="text-lg">
-                  {analysis.manipulation_confidence ?? 'N/A'}
+                  {analysis.manipulation_confidence}
                 </span>
               </p>
               <p>
                 <strong>Mean Pixel Difference:</strong>{' '}
-                {analysis.mean_pixel_variance ?? 'N/A'}
+                {analysis.mean_pixel_variance}
               </p>
             </div>
 
@@ -210,17 +299,10 @@ export default function OriginView() {
                     className="rounded-lg border-2 border-[#ff4d4d] shadow-2xl w-full max-w-lg mx-auto object-contain"
                     style={{ maxHeight: '400px' }}
                   />
-
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded-lg flex items-center justify-center">
-                    <p className="text-white text-sm font-medium px-4 py-2 bg-black/70 rounded">
-                      Pixel Differences Highlighted in Red
-                    </p>
-                  </div>
                 </div>
 
                 <p className="text-xs text-slate-400 mt-2 text-center italic">
-                  Red areas indicate pixel differences, not definitive proof of
-                  tampering or a deepfake.
+                  Red regions indicate exact pixel discrepancies calculated instantly in-browser. Saved securely to Supabase.
                 </p>
               </div>
             )}

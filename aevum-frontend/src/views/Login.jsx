@@ -1,17 +1,34 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../App';
+import { sendOtp } from '../api';
 
 export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const { setAuth } = useApp();
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setAuth({ isAuthenticated: false, token: null, user: { email } });
-    navigate('/verify-otp');
+    setLoading(true);
+    setError('');
+
+    try {
+      const data = await sendOtp(email, password);
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setAuth({ isAuthenticated: false, token: null, user: { email } });
+        navigate('/verify-otp', { state: { email } });
+      }
+    } catch (err) {
+      setError('Failed to connect to authentication server.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -19,6 +36,13 @@ export default function Login() {
       <div className="w-full max-w-md p-8 rounded-2xl bg-aevum-card/80 border border-slate-800 backdrop-blur-md shadow-2xl">
         <h2 className="text-2xl font-bold mb-2">Welcome Back</h2>
         <p className="text-sm text-slate-400 mb-6">Enter your credentials to access your account securely.</p>
+        
+        {error && (
+          <p className="mb-4 text-xs text-red-400 bg-red-950/50 p-3 rounded-lg border border-red-800">
+            {error}
+          </p>
+        )}
+
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-xs font-medium text-slate-300 mb-1">Email Address</label>
@@ -27,7 +51,7 @@ export default function Login() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg bg-slate-900/80 border border-slate-700 focus:border-sky-500 focus:outline-none text-sm"
+              className="w-full px-4 py-2.5 rounded-lg bg-slate-900/80 border border-slate-700 focus:border-sky-500 focus:outline-none text-sm text-white"
               placeholder="you@example.com"
             />
           </div>
@@ -38,15 +62,16 @@ export default function Login() {
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg bg-slate-900/80 border border-slate-700 focus:border-sky-500 focus:outline-none text-sm"
+              className="w-full px-4 py-2.5 rounded-lg bg-slate-900/80 border border-slate-700 focus:border-sky-500 focus:outline-none text-sm text-white"
               placeholder="••••••••"
             />
           </div>
           <button
             type="submit"
-            className="w-full py-3 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold transition-all mt-2 text-sm"
+            disabled={loading}
+            className="w-full py-3 rounded-lg bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold transition-all mt-2 text-sm disabled:opacity-50 cursor-pointer"
           >
-            Continue to Verification
+            {loading ? 'Sending Verification Code...' : 'Continue to Verification'}
           </button>
         </form>
       </div>

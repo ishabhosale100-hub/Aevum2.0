@@ -1,17 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Mail, Lock, ArrowRight, CheckCircle, AlertTriangle, RefreshCw } from 'lucide-react';
 import { useApp } from '../App';
+import { sendOtp, verifyOtp } from '../api';
 
 export default function OtpVerify() {
-  const [step, setStep] = useState('email');
-  const [email, setEmail] = useState('');
+  const location = useLocation();
+  const initialEmail = location.state?.email || '';
+
+  const [step, setStep] = useState(initialEmail ? 'verify' : 'email');
+  const [email, setEmail] = useState(initialEmail);
   const [otp, setOtp] = useState('');
   
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState(initialEmail ? `Verification code sent to: ${initialEmail}` : '');
   const [error, setError] = useState('');
-  const [timer, setTimer] = useState(0);
+  const [timer, setTimer] = useState(initialEmail ? 30 : 0);
 
   const { setAuth } = useApp();
   const navigate = useNavigate();
@@ -25,7 +29,7 @@ export default function OtpVerify() {
   }, [timer]);
 
   const handleSendOtp = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!email || !email.includes('@')) {
       return setError('Please enter a valid email address.');
     }
@@ -34,16 +38,23 @@ export default function OtpVerify() {
     setError('');
     setMessage('');
 
-    // Simulate sending code instantly without needing the backend running
-    setTimeout(() => {
-      setMessage(`Verification code sent to: ${email}`);
-      setStep('verify');
-      setTimer(30);
+    try {
+      const data = await sendOtp(email, 'default-password');
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setMessage(`Verification code sent to: ${email}`);
+        setStep('verify');
+        setTimer(30);
+      }
+    } catch (err) {
+      setError('Failed to send OTP. Please make sure the backend is running.');
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
-  const handleVerifyOtp = (e) => {
+  const handleVerifyOtp = async (e) => {
     e.preventDefault();
     if (!otp || otp.length !== 6) {
       return setError('Please enter the complete 6-digit code.');
@@ -52,12 +63,20 @@ export default function OtpVerify() {
     setLoading(true);
     setError('');
 
-    // Bypass backend validation: accept any 6 digits
-    setTimeout(() => {
-      setAuth({ isAuthenticated: true, token: 'mock-jwt-verified', user: { email } });
-      navigate('/language');
+    try {
+      const data = await verifyOtp(email, otp);
+      if (data.error) {
+        setError(data.error);
+      } else {
+        setAuth({ isAuthenticated: true, token: data.token || 'verified-jwt-token', user: { email } });
+        localStorage.setItem('user_email', email);
+        navigate('/language');
+      }
+    } catch (err) {
+      setError('Verification failed. Server non-responsive.');
+    } finally {
       setLoading(false);
-    }, 500);
+    }
   };
 
   const handleChangeEmail = () => {
@@ -72,7 +91,7 @@ export default function OtpVerify() {
     <div className="flex-1 flex items-center justify-center p-6">
       <div className="w-full max-w-md p-8 rounded-2xl bg-aevum-card/80 border border-slate-800 backdrop-blur-md shadow-2xl text-center">
         
-        <h2 className="text-2xl font-bold mb-2 flex items-center justify-center gap-2">
+        <h2 className="text-2xl font-bold mb-2 flex items-center justify-center gap-2 text-white">
           {step === 'email' ? <Mail className="w-6 h-6 text-sky-400"/> : <Lock className="w-6 h-6 text-emerald-400"/>}
           Secure Access
         </h2>
@@ -83,8 +102,16 @@ export default function OtpVerify() {
             : `Enter the 6-digit code sent to ${email}.`}
         </p>
 
-        {error && <p className="mb-4 text-sm text-red-400 bg-red-950/50 p-3 rounded-lg border border-red-800 flex items-center gap-2 text-left"><AlertTriangle className="w-5 h-5 shrink-0"/> <span>{error}</span></p>}
-        {message && <p className="mb-4 text-sm text-emerald-300 bg-emerald-950/50 p-3 rounded-lg border border-emerald-800 flex items-center gap-2"><CheckCircle className="w-4 h-4"/> {message}</p>}
+        {error && (
+          <p className="mb-4 text-sm text-red-400 bg-red-950/50 p-3 rounded-lg border border-red-800 flex items-center gap-2 text-left">
+            <AlertTriangle className="w-5 h-5 shrink-0"/> <span>{error}</span>
+          </p>
+        )}
+        {message && (
+          <p className="mb-4 text-sm text-emerald-300 bg-emerald-950/50 p-3 rounded-lg border border-emerald-800 flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 shrink-0"/> <span>{message}</span>
+          </p>
+        )}
 
         {step === 'email' && (
           <form onSubmit={handleSendOtp} className="space-y-6">
@@ -130,7 +157,7 @@ export default function OtpVerify() {
             <button 
               type="button" 
               onClick={handleChangeEmail}
-              className="text-xs text-slate-500 hover:text-sky-400 transition-colors mt-2 inline-block"
+              className="text-xs text-slate-500 hover:text-sky-400 transition-colors mt-2 inline-block cursor-pointer"
             >
               Change email address?
             </button>
