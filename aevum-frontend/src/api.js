@@ -24,10 +24,9 @@ async function apiRequest(endpoint, options = {}) {
       }
     });
   } catch (error) {
-    console.error('Network/API connection failed:', error);
-
+    console.error('API connection failed:', error);
     throw new Error(
-      'Cannot connect to Aevum backend. Check your internet connection, API URL, CORS settings, and backend deployment.'
+      'Cannot connect to the backend. Check the API URL, CORS settings, and backend deployment.'
     );
   }
 
@@ -81,7 +80,6 @@ export async function verifyOtp(email, otp) {
 // AEGIS — IMAGE PROTECTION
 // ==========================================
 
-// Calls the backend AEGIS protection endpoint.
 export async function protectAegisImage(payload) {
   return apiRequest('/ml/aegis-protect', {
     method: 'POST',
@@ -89,7 +87,6 @@ export async function protectAegisImage(payload) {
   });
 }
 
-// Saves the protected image and its metadata.
 export async function saveAegisPhoto(payload) {
   return apiRequest('/save/aegis', {
     method: 'POST',
@@ -101,7 +98,6 @@ export async function saveAegisPhoto(payload) {
 // ORIGIN — IMAGE ANALYSIS
 // ==========================================
 
-// Calls the backend ORIGIN analysis endpoint.
 export async function analyzeOriginImage(payload) {
   return apiRequest('/ml/origin-analyze', {
     method: 'POST',
@@ -109,7 +105,6 @@ export async function analyzeOriginImage(payload) {
   });
 }
 
-// Saves the ORIGIN analysis report.
 export async function saveOriginReport(payload) {
   return apiRequest('/save/origin', {
     method: 'POST',
@@ -130,7 +125,7 @@ export async function getUserHistory(email) {
 }
 
 // ==========================================
-// EXPORT API BASE URL
+// EXPORT
 // ==========================================
 
 export { API_BASE_URL };
