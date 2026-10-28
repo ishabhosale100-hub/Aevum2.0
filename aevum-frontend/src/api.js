@@ -25,8 +25,9 @@ async function apiRequest(endpoint, options = {}) {
     });
   } catch (error) {
     console.error('API connection failed:', error);
+
     throw new Error(
-      'Cannot connect to the backend. Check the API URL, CORS settings, and backend deployment.'
+      'Cannot connect to Aevum backend. Check the API URL, CORS settings, and backend deployment.'
     );
   }
 
@@ -41,6 +42,7 @@ async function apiRequest(endpoint, options = {}) {
     }
   } else {
     const text = await response.text();
+
     result = {
       success: false,
       error: text || `Unexpected server response (${response.status}).`
