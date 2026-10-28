@@ -1,50 +1,136 @@
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:5000/api'
+      : 'https://aevum2-0-ybbj.vercel.app/api'
+  )
+).replace(/\/+$/, '');
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || (
-  window.location.hostname === 'localhost' ||
-  window.location.hostname === '127.0.0.1'
-    ? 'http://localhost:5000/api'
-    : 'https://aevum2-0-ybbj.vercel.app/api'
-);
+// ==========================================
+// COMMON API REQUEST HANDLER
+// ==========================================
 
+async function apiRequest(endpoint, options = {}) {
+  let response;
 
+  try {
+    response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers: {
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+        ...(options.headers || {})
+      }
+    });
+  } catch (error) {
+    console.error('Network/API connection failed:', error);
+
+    throw new Error(
+      'Cannot connect to Aevum backend. Check your internet connection, API URL, CORS settings, and backend deployment.'
+    );
+  }
+
+  const contentType = response.headers.get('content-type') || '';
+  let result;
+
+  if (contentType.includes('application/json')) {
+    try {
+      result = await response.json();
+    } catch {
+      throw new Error('The backend returned invalid JSON.');
+    }
+  } else {
+    const text = await response.text();
+    result = {
+      success: false,
+      error: text || `Unexpected server response (${response.status}).`
+    };
+  }
+
+  if (!response.ok) {
+    throw new Error(
+      result.error ||
+      result.message ||
+      `Request failed with status ${response.status}.`
+    );
+  }
+
+  return result;
+}
+
+// ==========================================
+// AUTHENTICATION
+// ==========================================
 
 export async function sendOtp(email, password) {
-  const res = await fetch(`${API_BASE_URL}/auth/login-signup`, {
+  return apiRequest('/auth/login-signup', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password })
   });
-  return res.json();
 }
 
 export async function verifyOtp(email, otp) {
-  const res = await fetch(`${API_BASE_URL}/verify-otp`, {
+  return apiRequest('/verify-otp', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, otp })
   });
-  return res.json();
 }
 
+// ==========================================
+// AEGIS — IMAGE PROTECTION
+// ==========================================
+
+// Calls the backend AEGIS protection endpoint.
+export async function protectAegisImage(payload) {
+  return apiRequest('/ml/aegis-protect', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+// Saves the protected image and its metadata.
 export async function saveAegisPhoto(payload) {
-  const res = await fetch(`${API_BASE_URL}/save/aegis`, {
+  return apiRequest('/save/aegis', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  return res.json();
 }
 
-export async function saveOriginReport(payload) {
-  const res = await fetch(`${API_BASE_URL}/save/origin`, {
+// ==========================================
+// ORIGIN — IMAGE ANALYSIS
+// ==========================================
+
+// Calls the backend ORIGIN analysis endpoint.
+export async function analyzeOriginImage(payload) {
+  return apiRequest('/ml/origin-analyze', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload)
   });
-  return res.json();
 }
+
+// Saves the ORIGIN analysis report.
+export async function saveOriginReport(payload) {
+  return apiRequest('/save/origin', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
+}
+
+// ==========================================
+// HISTORY
+// ==========================================
 
 export async function getUserHistory(email) {
-  const res = await fetch(`${API_BASE_URL}/history/${email}`);
-  return res.json();
+  if (!email) {
+    throw new Error('Email is required to load history.');
+  }
+
+  return apiRequest(`/history/${encodeURIComponent(email)}`);
 }
+
+// ==========================================
+// EXPORT API BASE URL
+// ==========================================
+
+export { API_BASE_URL };
