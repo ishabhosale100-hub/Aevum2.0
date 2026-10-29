@@ -1,3 +1,4 @@
+// Automatically routes to localhost during local dev, and to your deployed backend in production
 const API_BASE_URL = (
   import.meta.env.VITE_API_URL ||
   (
