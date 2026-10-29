@@ -6,6 +6,7 @@ import {
   MapPin,
   Droplets,
 } from 'lucide-react';
+import { analyzeOriginImage, saveOriginReport } from '../api';
 
 export default function OriginView() {
   const [original, setOriginal] = useState(null);
@@ -89,7 +90,7 @@ export default function OriginView() {
         if (pixelDiff > 35) { // Threshold for noticeable tampering/difference
           diffPixelCount++;
           // Highlight discrepancy in Bright Red on heatmap
-          diffPixels[i] = 255;     // R
+          diffPixels[i] = 255;    // R
           diffPixels[i + 1] = 0;   // G
           diffPixels[i + 2] = 0;   // B
           diffPixels[i + 3] = 220; // Alpha
@@ -136,16 +137,12 @@ export default function OriginView() {
 
       // Save report record to Supabase via backend save endpoint
       const userEmail = localStorage.getItem('user_email') || 'isha@test.com';
-      await fetch('http://localhost:5000/api/save/origin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_email: userEmail,
-          confidence_score: confidenceScore,
-          mean_pixel_variance: meanVariance,
-          flagged_tampering: flaggedTampering,
-          heatmap_base64: heatmapBase64
-        }),
+      await saveOriginReport({
+        user_email: userEmail,
+        confidence_score: confidenceScore,
+        mean_pixel_variance: meanVariance,
+        flagged_tampering: flaggedTampering,
+        heatmap_base64: heatmapBase64
       });
 
     } catch (err) {

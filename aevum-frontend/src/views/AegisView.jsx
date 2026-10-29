@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Shield, Upload, CheckCircle, Download, ListOrdered } from 'lucide-react';
+import { protectAegisImage, saveAegisPhoto } from '../api';
 
 export default function AegisView() {
   const [file, setFile] = useState(null);
@@ -51,33 +52,23 @@ export default function AegisView() {
       // Get user email from local storage or use a fallback test email
       const userEmail = localStorage.getItem('user_email') || 'isha@test.com';
 
-      // Call backend server directly on port 5000
-      const response = await fetch('http://localhost:5000/api/ml/aegis-protect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_email: userEmail,
-          file_base64: base64String,
-          file_name: file.name
-        }),
+      // Call backend server via centralized production API helper
+      const data = await protectAegisImage({
+        user_email: userEmail,
+        file_base64: base64String,
+        file_name: file.name
       });
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
+      if (!data.success) {
         throw new Error(data.error || 'Failed to protect image via AEGIS service.');
       }
 
       // Also save the record to Supabase via backend save endpoint
-      await fetch('http://localhost:5000/api/save/aegis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          user_email: userEmail,
-          file_base64: base64String,
-          photo_dna_id: data.photo_dna_id,
-          file_name: file.name
-        }),
+      await saveAegisPhoto({
+        user_email: userEmail,
+        file_base64: base64String,
+        photo_dna_id: data.photo_dna_id,
+        file_name: file.name
       });
 
       // Create local object URL for instant download view
