@@ -1,11 +1,19 @@
-const API_BASE_URL = 'https://aevum2-0-ybbj.vercel.app/api';
+// Automatically routes to localhost during local dev, and your live backend on Vercel
+const API_BASE_URL = (
+  import.meta.env.VITE_API_URL ||
+  (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1'
+      ? 'http://localhost:5000/api'
+      : 'https://aevum2-0-ybbj.vercel.app/api'
+  )
+).replace(/\/+$/, '');
 
 // ==========================================
 // COMMON API REQUEST HANDLER
 // ==========================================
 async function apiRequest(endpoint, options = {}) {
   let response;
-  // ... rest of your code
 
   try {
     response = await fetch(`${API_BASE_URL}${endpoint}`, {
