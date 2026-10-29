@@ -1,17 +1,10 @@
-// Automatically routes to localhost during local dev, and your live backend on Vercel
-const API_BASE_URL = (
-  import.meta.env.VITE_API_URL ||
-  (
-    window.location.hostname === 'localhost' ||
-    window.location.hostname === '127.0.0.1'
-      ? 'http://localhost:5000/api'
-      : 'https://aevum2-0-ybbj.vercel.app/api'
-  )
-).replace(/\/+$/, '');
+// Hardcoded production backend URL to eliminate any routing or localhost errors on Vercel
+const API_BASE_URL = 'https://aevum2-0-ybbj.vercel.app/api';
 
 // ==========================================
 // COMMON API REQUEST HANDLER
 // ==========================================
+
 async function apiRequest(endpoint, options = {}) {
   let response;
 
@@ -25,10 +18,7 @@ async function apiRequest(endpoint, options = {}) {
     });
   } catch (error) {
     console.error('API connection failed:', error);
-
-    throw new Error(
-      'Cannot connect to Aevum backend. Check the API URL, CORS settings, and backend deployment.'
-    );
+    throw new Error('Cannot connect to Aevum backend. Check CORS or deployment.');
   }
 
   const contentType = response.headers.get('content-type') || '';
@@ -42,7 +32,6 @@ async function apiRequest(endpoint, options = {}) {
     }
   } else {
     const text = await response.text();
-
     result = {
       success: false,
       error: text || `Unexpected server response (${response.status}).`
@@ -61,7 +50,7 @@ async function apiRequest(endpoint, options = {}) {
 }
 
 // ==========================================
-// AUTHENTICATION
+// AUTHENTICATION (Untouched & Fully Working)
 // ==========================================
 
 export async function sendOtp(email, password) {
@@ -79,7 +68,7 @@ export async function verifyOtp(email, otp) {
 }
 
 // ==========================================
-// AEGIS — IMAGE PROTECTION
+// AEGIS — IMAGE PROTECTION (Optimized Payload)
 // ==========================================
 
 export async function protectAegisImage(payload) {
@@ -122,12 +111,7 @@ export async function getUserHistory(email) {
   if (!email) {
     throw new Error('Email is required to load history.');
   }
-
   return apiRequest(`/history/${encodeURIComponent(email)}`);
 }
-
-// ==========================================
-// EXPORT
-// ==========================================
 
 export { API_BASE_URL };
