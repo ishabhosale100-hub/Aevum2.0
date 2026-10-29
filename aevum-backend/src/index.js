@@ -66,6 +66,14 @@ const otpStorage = new Map();
 // 4. HEALTH CHECK
 // ==========================================
 
+// ==========================================
+// 4. HEALTH CHECK & ROOT ROUTE
+// ==========================================
+
+app.get('/', (req, res) => {
+  res.status(200).json({ status: 'active', message: 'Aevum Backend API is running!' });
+});
+
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'active',
